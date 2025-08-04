@@ -1,1 +1,1 @@
-# Ultra Vision Career AI App (Streamlit Deployment Ready)
+# Mobile-ready Ultra Vision AI App with Camera + Mic

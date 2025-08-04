@@ -3,44 +3,90 @@ import openai
 import streamlit as st
 import tempfile
 import os
+import base64
 
 # --- Branding ---
-st.set_page_config(page_title="Ultra Vision Career Explorer", page_icon="🎓")
+st.set_page_config(page_title="Ultra Vision Mobile Career Explorer", page_icon="🎓")
 st.markdown(
     """
     <div style='text-align: center;'>
-        <img src='https://raw.githubusercontent.com/your-repo/ultra-logo.png' width='150'>
-        <h1 style='color: #0A74DA;'>Ultra Vision Academy</h1>
-        <h3><i>A Vision to make student dignified person</i></h3>
+        <img src='https://raw.githubusercontent.com/your-repo/ultra-logo.png' width='120'>
+        <h2 style='color: #0A74DA;'>Ultra Vision Academy</h2>
+        <p><i>A Vision to make student dignified person</i></p>
     </div>
     """, unsafe_allow_html=True
 )
 
-# --- Inputs ---
+# --- API Key Input ---
 openai_api_key = st.text_input("🔑 Enter your OpenAI API Key", type="password")
 
-uploaded_audio = st.file_uploader("🎤 Upload Student Voice (MP3/WAV saying 'I want to be a ___')", type=["mp3", "wav"])
-uploaded_image = st.file_uploader("📸 Upload Student Photo (optional, for display)", type=["jpg", "jpeg", "png"])
+# --- Webcam Photo Capture ---
+photo = st.camera_input("📸 Take your photo")
 
-if uploaded_audio and openai_api_key:
-    with tempfile.NamedTemporaryFile(delete=False, suffix=".mp3") as tmp_audio:
-        tmp_audio.write(uploaded_audio.read())
-        tmp_audio_path = tmp_audio.name
+# --- Microphone Recorder (HTML5 Recorder) ---
+st.markdown("### 🎤 Record your voice (say 'I want to be a ___')")
 
-    with open(tmp_audio_path, "rb") as f:
-        transcript = openai.Audio.transcribe("whisper-1", f, api_key=openai_api_key)
-    os.unlink(tmp_audio_path)
+mic_recorder_html = '''
+<div>
+  <button onclick="startRecording()" style="padding:10px 20px;font-size:16px;">🎙️ Start Recording</button>
+  <button onclick="stopRecording()" style="padding:10px 20px;font-size:16px;">⏹️ Stop</button>
+  <p id="status"></p>
+  <audio id="audioPlayback" controls style="margin-top:10px;"></audio>
+  <script>
+    let mediaRecorder;
+    let audioChunks = [];
 
-    command = transcript["text"]
-    st.success(f"🗣 Transcribed: {command}")
+    function startRecording() {
+      navigator.mediaDevices.getUserMedia({ audio: true }).then(stream => {
+        mediaRecorder = new MediaRecorder(stream);
+        mediaRecorder.start();
+        audioChunks = [];
+        mediaRecorder.ondataavailable = event => {
+          audioChunks.push(event.data);
+        };
+        document.getElementById("status").innerText = "Recording...";
+      });
+    }
 
-    if "I want to be" in command:
-        profession = command.split("I want to be")[-1].strip()
+    function stopRecording() {
+      mediaRecorder.stop();
+      mediaRecorder.onstop = () => {
+        const blob = new Blob(audioChunks, { type: 'audio/webm' });
+        const audioUrl = URL.createObjectURL(blob);
+        const audio = document.getElementById("audioPlayback");
+        audio.src = audioUrl;
+
+        const reader = new FileReader();
+        reader.readAsDataURL(blob);
+        reader.onloadend = function () {
+          const base64data = reader.result;
+          const pyInput = window.streamlitWebcamInput || {};
+          pyInput['audio'] = base64data;
+          window.parent.postMessage({ type: 'streamlit:setComponentValue', value: pyInput }, '*');
+        };
+        document.getElementById("status").innerText = "Recording stopped.";
+      };
+    }
+  </script>
+</div>
+'''
+
+component_placeholder = st.empty()
+component_placeholder.components.v1.html(mic_recorder_html, height=250)
+
+# Placeholder for audio processing
+st.warning("⚠️ Voice recording currently works in browser, but final audio upload to server is limited without JS component backend.")
+st.info("🧪 For now, use photo + type career below manually.")
+
+# Manual fallback (until Streamlit supports audio natively)
+manual_command = st.text_input("Or type what you said:", placeholder="I want to be a doctor")
+
+if openai_api_key and manual_command and photo:
+    if "I want to be" in manual_command:
+        profession = manual_command.split("I want to be")[-1].strip()
         prompt = f"A realistic photo of a child as a {profession}, smiling, in professional clothes, high quality, modern background"
 
-        if uploaded_image:
-            st.image(uploaded_image, caption="Student Photo", width=200)
-
+        st.image(photo, caption="Your Photo", width=200)
         st.info(f"🎨 Generating: You as a {profession}...")
 
         response = openai.Image.create(
@@ -56,10 +102,10 @@ if uploaded_audio and openai_api_key:
 
 # Footer
 st.markdown(
-    """<hr style='margin-top:50px;margin-bottom:20px;'>
+    """<hr>
     <div style='text-align: center; color: grey;'>
         Visit us at <a href='https://www.ultravisionschool.com' target='_blank'>www.ultravisionschool.com</a><br>
-        &copy; 2025 Ultra Vision Academy. All rights reserved.
+        &copy; 2025 Ultra Vision Academy
     </div>
     """, unsafe_allow_html=True
 )
