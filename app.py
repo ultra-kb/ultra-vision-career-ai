@@ -3,7 +3,6 @@ import openai
 import streamlit as st
 import tempfile
 import os
-import base64
 
 # --- Branding ---
 st.set_page_config(page_title="Ultra Vision Mobile Career Explorer", page_icon="🎓")
@@ -23,10 +22,12 @@ openai_api_key = st.text_input("🔑 Enter your OpenAI API Key", type="password"
 # --- Webcam Photo Capture ---
 photo = st.camera_input("📸 Take your photo")
 
-# --- Microphone Recorder (HTML5 Recorder) ---
+# --- Microphone Recorder (HTML5 Recorder via st.components.v1.html) ---
 st.markdown("### 🎤 Record your voice (say 'I want to be a ___')")
 
-mic_recorder_html = '''
+import streamlit.components.v1 as components
+
+components.html('''
 <div>
   <button onclick="startRecording()" style="padding:10px 20px;font-size:16px;">🎙️ Start Recording</button>
   <button onclick="stopRecording()" style="padding:10px 20px;font-size:16px;">⏹️ Stop</button>
@@ -69,17 +70,10 @@ mic_recorder_html = '''
     }
   </script>
 </div>
-'''
+''', height=250)
 
-component_placeholder = st.empty()
-component_placeholder.components.v1.html(mic_recorder_html, height=250)
-
-# Placeholder for audio processing
-st.warning("⚠️ Voice recording currently works in browser, but final audio upload to server is limited without JS component backend.")
-st.info("🧪 For now, use photo + type career below manually.")
-
-# Manual fallback (until Streamlit supports audio natively)
-manual_command = st.text_input("Or type what you said:", placeholder="I want to be a doctor")
+# Manual text fallback for career input
+manual_command = st.text_input("🧠 Or type what you said:", placeholder="I want to be a doctor")
 
 if openai_api_key and manual_command and photo:
     if "I want to be" in manual_command:
