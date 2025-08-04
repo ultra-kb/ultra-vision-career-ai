@@ -1,7 +1,6 @@
 
 import openai
 import streamlit as st
-from pydub import AudioSegment
 import tempfile
 import os
 
@@ -24,13 +23,13 @@ uploaded_audio = st.file_uploader("🎤 Upload Student Voice (MP3/WAV saying 'I 
 uploaded_image = st.file_uploader("📸 Upload Student Photo (optional, for display)", type=["jpg", "jpeg", "png"])
 
 if uploaded_audio and openai_api_key:
-    with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as tmp_audio:
-        audio = AudioSegment.from_file(uploaded_audio)
-        audio.export(tmp_audio.name, format="wav")
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".mp3") as tmp_audio:
+        tmp_audio.write(uploaded_audio.read())
+        tmp_audio_path = tmp_audio.name
 
-        with open(tmp_audio.name, "rb") as f:
-            transcript = openai.Audio.transcribe("whisper-1", f, api_key=openai_api_key)
-        os.unlink(tmp_audio.name)
+    with open(tmp_audio_path, "rb") as f:
+        transcript = openai.Audio.transcribe("whisper-1", f, api_key=openai_api_key)
+    os.unlink(tmp_audio_path)
 
     command = transcript["text"]
     st.success(f"🗣 Transcribed: {command}")
